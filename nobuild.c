@@ -1,9 +1,7 @@
-// TODO: make build directory
-
 #define NOBUILD_IMPLEMENTATION
 #include "./nobuild.h"
 
-#define CFLAGS "-Wall", "-Wextra", "-pedantic"
+#define CFLAGS "-Wall", "-Wextra", "-pedantic", "-lpthread", "-ggdb"
 
 void marius_src(const char *src) {
     Cstr src_path = PATH("src", src);

@@ -11,10 +11,28 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <pthread.h>
 
 const char example[] = {0xD, 0xE, 0xA, 0xD, 0xB, 0xE, 0xE, 0xF};
+void *client(void);
+void *server(void);
 
-void client() {
+int main(void) {
+    pthread_t client_thread, server_thread;
+    if(pthread_create(&server_thread, NULL, server, NULL))
+        return EXIT_FAILURE;
+    if(pthread_create(&client_thread, NULL, client, NULL)) {
+        pthread_cancel(server_thread);
+        return EXIT_FAILURE;
+    }
+
+    // TODO: threads arent exiting properly and doesnt (or exits before) close the file descriptor
+    pthread_join(server_thread, NULL);
+    pthread_join(client_thread, NULL);
+    return EXIT_SUCCESS;
+}
+
+void *client(void) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if(fd == -1) {
         fprintf(stderr, "couldnt create socket (%d)\n", errno);
@@ -43,9 +61,10 @@ void client() {
     printf("\n");
 
     close(fd);
+    pthread_exit(NULL);
 }
 
-void server(void) {
+void *server(void) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if(fd == -1) {
         fprintf(stderr, "couldnt create socket (%d)\n", errno);
@@ -65,32 +84,14 @@ void server(void) {
 
     listen(fd, 2);
 
-    while(true) {
-        int connfd = accept(fd, (struct sockaddr *)&addr, &addrlen);
-        if(connfd == -1) {
-            fprintf(stderr, "couldnt accept connection\n");
-            exit(EXIT_FAILURE);
-        }
-
-        write(connfd, example, sizeof example);
-
-        close(connfd);
-        sleep(1);
+    int connfd = accept(fd, (struct sockaddr *)&addr, &addrlen);
+    if(connfd == -1) {
+        fprintf(stderr, "couldnt accept connection\n");
+        exit(EXIT_FAILURE);
     }
+    write(connfd, example, sizeof example);
+    close(connfd);
 
     close(fd);
-}
-
-int main(int argc, char *argv[]) {
-    if(argc < 2) {
-        printf("supply either \"client\" or \"server\"\n");
-        return 0;
-    }
-
-    if(strcmp(argv[1], "client") == 0)
-        client();
-    else if(strcmp(argv[1], "server") == 0)
-        server();
-
-    return 0;
+    pthread_exit(NULL);
 }
